@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>식단 플래너 — 나만의 맞춤 식단</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;700&family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #0c0c0c; --surface: #1c1c1c; --surface2: #242424; --surface3: #2c2c2c;
+    --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.13);
+    --text: #efefef; --text2: #909090; --text3: #555;
+    --accent: #d4f050; --accent2: #b8d43a; --accent-dim: rgba(212,240,80,0.1);
+    --red: #ff6b6b; --blue: #6fa8ff; --orange: #ffb347; --teal: #4ecdc4;
+    --r: 12px; --r-sm: 8px; --r-lg: 18px;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Pretendard', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6; }
+  .container { max-width: 880px; margin: 0 auto; padding: 0 20px 80px; }
+
+  /* HERO */
+  .hero { padding: 60px 0 48px; border-bottom: 1px solid var(--border); margin-bottom: 36px; }
+  .hero-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
+  .hero h1 { font-family: 'Noto Serif KR', serif; font-size: clamp(30px, 5vw, 46px); font-weight: 700; line-height: 1.2; letter-spacing: -1px; margin-bottom: 14px; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero p { font-size: 15px; color: var(--text2); max-width: 480px; line-height: 1.7; }
+
+  /* CARDS */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 28px; margin-bottom: 14px; }
+  .card-title { font-size: 12px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 1.4px; margin-bottom: 22px; display: flex; align-items: center; gap: 8px; }
+  .card-title::before { content: ''; display: inline-block; width: 3px; height: 14px; background: var(--accent); border-radius: 2px; }
+  .card-title .optional { font-size: 10px; font-weight: 500; color: var(--text3); letter-spacing: 0; text-transform: none; margin-left: 4px; }
+
+  /* GRID */
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; }
+  .col-span-2 { grid-column: span 2; }
+  .col-span-3 { grid-column: span 3; }
+  .col-span-4 { grid-column: span 4; }
+
+  /* FIELDS */
+  .field { display: flex; flex-direction: column; gap: 7px; }
+  .field label { font-size: 12px; font-weight: 500; color: var(--text2); display: flex; align-items: center; gap: 6px; }
+  .field label .opt-badge { font-size: 10px; color: var(--text3); background: var(--surface2); border: 1px solid var(--border2); border-radius: 4px; padding: 1px 5px; }
+  .field label .req-badge { font-size: 10px; color: var(--accent); background: var(--accent-dim); border-radius: 4px; padding: 1px 5px; }
+  .field input, .field select, .field textarea {
+    background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--r-sm);
+    padding: 11px 14px; color: var(--text); font-size: 14px; font-family: inherit;
+    outline: none; transition: border-color 0.2s, background 0.2s; appearance: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); background: var(--surface3); }
+  .field input::placeholder, .field textarea::placeholder { color: var(--text3); }
+  .field textarea { resize: none; height: 72px; line-height: 1.6; }
+
+  /* API KEY */
+  .apikey-wrapper { position: relative; }
+  .apikey-wrapper input { width: 100%; padding-right: 44px; font-family: monospace; font-size: 13px; }
+  .apikey-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; padding: 4px; }
+  .apikey-hint { font-size: 11px; color: var(--text3); margin-top: 5px; }
+  .apikey-hint a { color: var(--accent); text-decoration: none; }
+
+  /* GOAL TARGET SELECTOR */
+  .goal-target-row { display: grid; grid-template-columns: 1fr 2fr; gap: 14px; align-items: start; }
+  .goal-type-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .goal-type-btn {
+    padding: 8px 14px; border-radius: var(--r-sm); font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border2); background: var(--surface2);
+    color: var(--text2); transition: all 0.15s; font-family: inherit;
+  }
+  .goal-type-btn.active { background: var(--accent-dim); color: var(--accent); border-color: rgba(212,240,80,0.3); font-weight: 600; }
+  .goal-value-wrap { display: flex; gap: 8px; align-items: center; }
+  .goal-value-wrap input { flex: 1; }
+  .goal-value-wrap .goal-unit { font-size: 13px; color: var(--text3); white-space: nowrap; }
+  .goal-direction-btns { display: flex; gap: 6px; }
+  .goal-dir-btn {
+    padding: 11px 14px; border-radius: var(--r-sm); font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border2); background: var(--surface2);
+    color: var(--text2); transition: all 0.15s; font-family: inherit; white-space: nowrap;
+  }
+  .goal-dir-btn.active { background: var(--accent-dim); color: var(--accent); border-color: rgba(212,240,80,0.3); font-weight: 600; }
+
+  /* CUISINE MULTI-SELECT */
+  .cuisine-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cuisine-btn {
+    padding: 8px 16px; border-radius: 100px; font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1px solid var(--border2); background: var(--surface2);
+    color: var(--text2); transition: all 0.15s; font-family: inherit;
+    user-select: none;
+  }
+  .cuisine-btn.active { background: var(--accent-dim); color: var(--accent); border-color: rgba(212,240,80,0.3); font-weight: 600; }
+
+  /* BUTTON */
+  .btn-generate { width: 100%; padding: 16px; background: var(--accent); color: #0c0c0c; border: none; border-radius: var(--r-sm); font-size: 15px; font-weight: 700; font-family: inherit; cursor: pointer; margin-top: 6px; transition: background 0.2s, transform 0.1s, opacity 0.2s; letter-spacing: -0.2px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .btn-generate:hover:not(:disabled) { background: var(--accent2); }
+  .btn-generate:active:not(:disabled) { transform: scale(0.99); }
+  .btn-generate:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* LOADING */
+  .loading-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 52px 24px; text-align: center; display: none; margin-bottom: 14px; }
+  .loading-card.visible { display: block; }
+  .spinner { width: 40px; height: 40px; border: 3px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.75s linear infinite; margin: 0 auto 20px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .loading-sub { font-size: 13px; color: var(--text2); }
+  .loading-steps { margin-top: 20px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .loading-step { font-size: 12px; color: var(--text3); transition: color 0.3s; }
+  .loading-step.active { color: var(--accent); }
+
+  /* ERROR */
+  .error-card { background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.25); border-radius: var(--r-sm); padding: 14px 18px; font-size: 13px; color: var(--red); display: none; margin-bottom: 14px; line-height: 1.6; }
+  .error-card.visible { display: block; }
+
+  /* RESULT */
+  .result-section { display: none; }
+  .result-section.visible { display: block; }
+  .section-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); margin-bottom: 16px; }
+
+  /* TARGETS */
+  .targets-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
+  .target-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 18px 14px; text-align: center; }
+  .target-card .t-val { font-size: 24px; font-weight: 700; color: var(--accent); letter-spacing: -1px; line-height: 1; }
+  .target-card .t-unit { font-size: 11px; color: var(--text2); margin-top: 3px; }
+  .target-card .t-lbl { font-size: 11px; color: var(--text3); margin-top: 8px; }
+
+  /* WEEKLY TABLE - main display */
+  .weekly-wrap { overflow-x: auto; margin-bottom: 14px; }
+  .weekly-tbl { width: 100%; border-collapse: collapse; min-width: 700px; }
+  .weekly-tbl th { padding: 12px 10px; font-size: 12px; font-weight: 600; text-align: center; color: var(--text2); background: var(--surface2); border-bottom: 1px solid var(--border2); }
+  .weekly-tbl th:first-child { text-align: left; padding-left: 16px; min-width: 80px; }
+  .weekly-tbl td { padding: 0; text-align: center; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .weekly-tbl td:first-child { text-align: left; padding-left: 16px; font-weight: 600; font-size: 11px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; padding-right: 8px; }
+  .weekly-tbl tr.stat-row td { background: var(--surface2); }
+  .weekly-tbl tr.stat-row td:first-child { color: var(--text3); }
+  .weekly-tbl tr.stat-row td.stat-val { color: var(--accent); font-size: 13px; font-weight: 700; padding: 10px 8px; }
+  .weekly-tbl tr:last-child td { border-bottom: none; }
+
+  /* MEAL CELL - clickable */
+  .meal-cell-btn {
+    display: block; width: 100%; padding: 12px 8px; font-size: 12px; color: var(--text);
+    background: none; border: none; cursor: pointer; font-family: inherit; line-height: 1.4;
+    transition: background 0.15s; text-align: center;
+  }
+  .meal-cell-btn:hover { background: var(--surface2); color: var(--accent); }
+  .meal-cell-btn .meal-cell-name { font-weight: 500; display: block; margin-bottom: 2px; }
+  .meal-cell-btn .meal-cell-kcal { font-size: 11px; color: var(--text3); display: block; }
+  .meal-cell-btn.eating-out .meal-cell-name::after { content: ' 🍽'; font-size: 10px; }
+
+  /* MODAL OVERLAY */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    z-index: 1000; align-items: center; justify-content: center; padding: 20px;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.visible { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border2); border-radius: var(--r-lg);
+    width: 100%; max-width: 560px; max-height: 88vh; overflow-y: auto;
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.97) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; position: sticky; top: 0; background: var(--surface); z-index: 1; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .modal-header-left { display: flex; flex-direction: column; gap: 6px; }
+  .modal-badge { font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 100px; width: fit-content; }
+  .modal-title { font-size: 18px; font-weight: 700; letter-spacing: -0.4px; line-height: 1.3; }
+  .modal-kcal { font-size: 13px; color: var(--text2); }
+  .modal-close { background: var(--surface2); border: 1px solid var(--border2); border-radius: 50%; width: 32px; height: 32px; cursor: pointer; font-size: 16px; color: var(--text2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 0.15s; }
+  .modal-close:hover { background: var(--surface3); color: var(--text); }
+  .modal-body { padding: 20px 24px 28px; }
+
+  /* MODAL FOOD IMAGE */
+  .food-image-wrap { width: 100%; height: 200px; background: var(--surface2); border-radius: var(--r); margin-bottom: 20px; overflow: hidden; display: flex; align-items: center; justify-content: center; position: relative; }
+  .food-image-wrap img { width: 100%; height: 100%; object-fit: cover; display: none; }
+  .food-image-wrap img.loaded { display: block; }
+  .food-image-placeholder { font-size: 48px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .food-image-placeholder span { font-size: 12px; color: var(--text3); font-family: inherit; }
+  .food-image-loading { position: absolute; inset: 0; background: var(--surface2); display: flex; align-items: center; justify-content: center; }
+  .food-image-loading .mini-spinner { width: 24px; height: 24px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.75s linear infinite; }
+
+  /* MODAL SECTIONS */
+  .modal-section-title { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; margin-top: 20px; }
+  .modal-section-title:first-child { margin-top: 0; }
+  .ingredients-list { display: flex; flex-wrap: wrap; gap: 7px; }
+  .ingredient-tag { background: var(--surface2); border: 1px solid var(--border2); border-radius: 100px; padding: 4px 11px; font-size: 12px; color: var(--text2); }
+  .recipe-text { font-size: 14px; color: var(--text); line-height: 1.85; white-space: pre-wrap; }
+  .eating-out-tip { margin-top: 10px; padding: 10px 14px; background: rgba(78,205,196,0.08); border-radius: var(--r-sm); font-size: 13px; color: var(--teal); }
+
+  /* NUTRITION TABLE */
+  .nut-table { width: 100%; border-collapse: collapse; }
+  .nut-table thead tr { background: var(--surface2); }
+  .nut-table th { padding: 9px 12px; text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); }
+  .nut-table th:last-child { text-align: right; }
+  .nut-table td { padding: 9px 12px; font-size: 13px; color: var(--text); border-bottom: 1px solid var(--border); }
+  .nut-table td:last-child { text-align: right; font-weight: 600; color: var(--accent); }
+  .nut-table tr:last-child td { border-bottom: none; }
+  .nut-table .sub td { padding-left: 26px; font-size: 12px; color: var(--text2); }
+  .nut-table .sub td:last-child { color: var(--text2); font-weight: 400; }
+
+  /* RESULT FOOTER */
+  .result-footer { margin-top: 16px; padding: 14px 18px; background: var(--accent-dim); border: 1px solid rgba(212,240,80,0.15); border-radius: var(--r-sm); font-size: 12px; color: var(--text2); line-height: 1.7; }
+  .result-footer strong { color: var(--accent); }
+
+  /* BADGE COLORS */
+  .badge-breakfast { background: rgba(255,179,71,0.12); color: var(--orange); }
+  .badge-lunch { background: rgba(111,168,255,0.12); color: var(--blue); }
+  .badge-dinner { background: rgba(212,240,80,0.1); color: var(--accent); }
+
+  @media (max-width: 640px) {
+    .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; }
+    .grid-3 .col-span-3, .grid-4 .col-span-4 { grid-column: span 2; }
+    .targets-grid { grid-template-columns: repeat(2, 1fr); }
+    .goal-target-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow">AI 맞춤 식단 플래너</div>
+    <h1>내 몸에 맞는<br><em>일주일 식단</em></h1>
+    <p>신체 정보와 목표를 입력하면 21끼니 맞춤 식단과 상세 영양성분을 자동으로 만들어드려요.</p>
+  </div>
+
+  <!-- API KEY -->
+  <div class="card">
+    <div class="card-title">API 키 설정</div>
+    <div class="field">
+      <label>Anthropic API Key <span class="req-badge">필수</span></label>
+      <div class="apikey-wrapper">
+        <input type="password" id="apiKey" placeholder="sk-ant-api03-...">
+        <button class="apikey-toggle" onclick="toggleApiKey()">👁</button>
+      </div>
+      <div class="apikey-hint">키가 없다면 <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a>에서 발급하세요.</div>
+    </div>
+  </div>
+
+  <!-- BODY INFO -->
+  <div class="card">
+    <div class="card-title">신체 정보</div>
+    <div class="grid-3">
+      <div class="field">
+        <label>키 (cm) <span class="req-badge">필수</span></label>
+        <input type="number" id="height" placeholder="169">
+      </div>
+      <div class="field">
+        <label>체중 (kg) <span class="req-badge">필수</span></label>
+        <input type="number" id="weight" placeholder="60.7" step="0.1">
+      </div>
+      <div class="field">
+        <label>나이 <span class="req-badge">필수</span></label>
+        <input type="number" id="age" placeholder="33">
+      </div>
+      <div class="field">
+        <label>성별 <span class="req-badge">필수</span></label>
+        <select id="gender">
+          <option value="여성">여성</option>
+          <option value="남성">남성</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>활동량 <span class="req-badge">필수</span></label>
+        <select id="activity">
+          <option value="낮음">낮음 (거의 운동 안 함)</option>
+          <option value="중간" selected>중간 (주 3~4회)</option>
+          <option value="높음">높음 (매일 운동)</option>
+        </select>
+      </div>
+      <div class="field" style="grid-column: span 1;"><!-- spacer --></div>
+      <div class="field">
+        <label>골격근량 (kg) <span class="opt-badge">선택</span></label>
+        <input type="number" id="muscle" placeholder="23.5" step="0.1">
+      </div>
+      <div class="field">
+        <label>체지방률 (%) <span class="opt-badge">선택</span></label>
+        <input type="number" id="bodyfat" placeholder="29.2" step="0.1">
+      </div>
+    </div>
+  </div>
+
+  <!-- GOAL -->
+  <div class="card">
+    <div class="card-title">목표 설정</div>
+    <div class="grid-2" style="margin-bottom:20px;">
+      <div class="field">
+        <label>목표 기간 <span class="req-badge">필수</span></label>
+        <select id="goalPeriod">
+          <option value="4주">4주 (1개월)</option>
+          <option value="8주">8주 (2개월)</option>
+          <option value="12주" selected>12주 (3개월)</option>
+          <option value="16주">16주 (4개월)</option>
+          <option value="24주">24주 (6개월)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>목표 항목 선택 <span class="req-badge">필수</span></label>
+        <div class="goal-type-btns" id="goalTypeBtns">
+          <button class="goal-type-btn" onclick="selectGoalType('체지방률')">체지방률 (%)</button>
+          <button class="goal-type-btn" onclick="selectGoalType('체중')">체중 (kg)</button>
+          <button class="goal-type-btn" onclick="selectGoalType('골격근량')">골격근량 (kg)</button>
+        </div>
+      </div>
+    </div>
+    <div id="goalValueArea" style="display:none;">
+      <div class="grid-2">
+        <div class="field">
+          <label id="goalValueLabel">목표 수치</label>
+          <div class="goal-value-wrap">
+            <input type="number" id="goalValue" placeholder="목표 수치" step="0.1">
+            <span class="goal-unit" id="goalUnit"></span>
+          </div>
+        </div>
+        <div class="field">
+          <label>방향</label>
+          <div class="goal-direction-btns">
+            <button class="goal-dir-btn active" id="dirDown" onclick="selectDir('감량')">↓ 감량/감소</button>
+            <button class="goal-dir-btn" id="dirUp" onclick="selectDir('증량')">↑ 증량/증가</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="goalPlaceholder" style="font-size:13px;color:var(--text3);margin-top:4px;">위에서 목표 항목을 선택해주세요</div>
+  </div>
+
+  <!-- PREFERENCES -->
+  <div class="card">
+    <div class="card-title">식단 선호도</div>
+
+    <div style="margin-bottom:20px;">
+      <div class="field" style="margin-bottom:10px;">
+        <label>식사 종류 <span class="opt-badge">선택 · 복수 선택 가능</span></label>
+      </div>
+      <div class="cuisine-grid" id="cuisineGrid">
+        <button class="cuisine-btn" onclick="toggleCuisine(this)" data-v="한식">🍚 한식</button>
+        <button class="cuisine-btn" onclick="toggleCuisine(this)" data-v="중식">🥢 중식</button>
+        <button class="cuisine-btn" onclick="toggleCuisine(this)" data-v="일식">🍣 일식</button>
+        <button class="cuisine-btn" onclick="toggleCuisine(this)" data-v="양식">🍝 양식</button>
+        <button class="cuisine-btn" onclick="toggleCuisine(this)" data-v="아시안">🌏 아시안</button>
+        <button class="cuisine-btn" onclick="toggleCuisine(this)" data-v="멕시코">🌮 멕시코</button>
+        <button class="cuisine-btn" onclick="toggleCuisine(this)" data-v="비건">🥗 비건</button>
+        <button class="cuisine-btn" onclick="toggleCuisine(this)" data-v="클린">✨ 클린</button>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="field">
+        <label>좋아하는 음식 <span class="opt-badge">선택</span></label>
+        <input type="text" id="likes" placeholder="파스타, 덮밥, 국물요리, 타코...">
+      </div>
+      <div class="field">
+        <label>못 먹거나 싫어하는 재료 <span class="opt-badge">선택</span></label>
+        <input type="text" id="dislikes" placeholder="고수, 굴, 내장, 고구마...">
+      </div>
+      <div class="field col-span-2">
+        <label>기타 조건 <span class="opt-badge">선택</span></label>
+        <textarea id="notes" placeholder="예: 저녁에는 탄수화물 안 먹음 / 주 2회 외식 가능 / 아침은 간단하게..."></textarea>
+      </div>
+    </div>
+    <button class="btn-generate" id="generateBtn" onclick="generate()">일주일 식단 생성하기</button>
+  </div>
+
+  <!-- LOADING -->
+  <div class="loading-card" id="loadingCard">
+    <div class="spinner"></div>
+    <div class="loading-title">식단을 구성하고 있어요</div>
+    <div class="loading-sub">약 30~60초 소요됩니다</div>
+    <div class="loading-steps">
+      <div class="loading-step" id="step1">① 신체 정보 분석 및 칼로리 목표 계산</div>
+      <div class="loading-step" id="step2">② 21끼니 레시피 구성 중</div>
+      <div class="loading-step" id="step3">③ 영양성분표 전 항목 계산 중</div>
+      <div class="loading-step" id="step4">④ 식단표 최종 정리 중</div>
+    </div>
+  </div>
+  <div class="error-card" id="errorCard"></div>
+
+  <!-- RESULT -->
+  <div class="result-section" id="resultSection">
+    <div class="section-label">하루 목표 섭취량</div>
+    <div class="targets-grid" id="targetsGrid"></div>
+    <div class="section-label" style="margin-top:8px;">주간 식단표 — 끼니를 클릭하면 상세 정보가 열려요</div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <div class="weekly-wrap">
+        <table class="weekly-tbl" id="weeklyTbl"></table>
+      </div>
+    </div>
+    <div class="result-footer" id="resultFooter"></div>
+  </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+  <div class="modal" id="modal">
+    <div class="modal-header">
+      <div class="modal-header-left">
+        <span class="modal-badge" id="modalBadge"></span>
+        <div class="modal-title" id="modalTitle"></div>
+        <div class="modal-kcal" id="modalKcal"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ===== STATE =====
+let goalType = null;
+let goalDir = '감량';
+let planData = null;
+let stepInterval = null;
+
+// ===== UI HELPERS =====
+function toggleApiKey() {
+  const i = document.getElementById('apiKey');
+  i.type = i.type === 'password' ? 'text' : 'password';
+}
+
+function selectGoalType(type) {
+  goalType = type;
+  document.querySelectorAll('.goal-type-btn').forEach(b => b.classList.toggle('active', b.textContent.includes(type)));
+  const units = { '체지방률': '%', '체중': 'kg', '골격근량': 'kg' };
+  document.getElementById('goalUnit').textContent = units[type] || '';
+  document.getElementById('goalValueLabel').textContent = `목표 ${type}`;
+  document.getElementById('goalValueArea').style.display = 'block';
+  document.getElementById('goalPlaceholder').style.display = 'none';
+  document.getElementById('goalValue').placeholder = type === '체지방률' ? '목표 체지방률 (예: 22)' : type === '체중' ? '목표 체중 (예: 55)' : '목표 골격근량 (예: 25)';
+}
+
+function selectDir(dir) {
+  goalDir = dir;
+  document.getElementById('dirDown').classList.toggle('active', dir === '감량');
+  document.getElementById('dirUp').classList.toggle('active', dir === '증량');
+}
+
+function toggleCuisine(btn) { btn.classList.toggle('active'); }
+
+function getSelectedCuisines() {
+  return [...document.querySelectorAll('.cuisine-btn.active')].map(b => b.dataset.v);
+}
+
+// ===== CALC =====
+function calcTargets(h, w, age, gender, activity, goalType, goalVal, goalDir, goalPeriod, bodyfat, muscle) {
+  const bmr = gender === '여성' ? (10*w + 6.25*h - 5*age - 161) : (10*w + 6.25*h - 5*age + 5);
+  const mult = {'낮음':1.375,'중간':1.55,'높음':1.725};
+  let tdee = bmr * (mult[activity]||1.55);
+
+  let deficit = 0;
+  if (goalType === '체지방률' || goalType === '체중') {
+    const weeks = parseInt(goalPeriod);
+    let kgToLose = 0;
+    if (goalType === '체중') {
+      kgToLose = goalDir === '감량' ? Math.max(0, w - goalVal) : 0;
+    } else if (goalType === '체지방률' && bodyfat) {
+      const currentFatKg = w * (bodyfat / 100);
+      const targetFatKg = w * (goalVal / 100);
+      kgToLose = goalDir === '감량' ? Math.max(0, currentFatKg - targetFatKg) : 0;
+    }
+    const totalDeficit = kgToLose * 7700;
+    deficit = Math.round(totalDeficit / (weeks * 7));
+    deficit = Math.min(deficit, 600);
+  }
+
+  if (goalDir === '증량') deficit = -250;
+  const kcal = Math.round(tdee - deficit);
+  const protein = Math.round(w * 2.0);
+  const fat = Math.round((kcal * 0.27) / 9);
+  const carb = Math.round((kcal - protein*4 - fat*9) / 4);
+  return { kcal, protein, fat, carb, deficit };
+}
+
+// ===== LOADING =====
+function startLoadingSteps() {
+  const steps = ['step1','step2','step3','step4'];
+  let i = 0;
+  steps.forEach(s => document.getElementById(s).classList.remove('active'));
+  document.getElementById(steps[0]).classList.add('active');
+  stepInterval = setInterval(() => {
+    steps.forEach(s => document.getElementById(s).classList.remove('active'));
+    i = (i+1) % steps.length;
+    document.getElementById(steps[i]).classList.add('active');
+  }, 6000);
+}
+function stopLoadingSteps() { if (stepInterval) { clearInterval(stepInterval); stepInterval = null; } }
+
+// ===== GENERATE =====
+async function generate() {
+  const apiKey = document.getElementById('apiKey').value.trim();
+  const h = parseFloat(document.getElementById('height').value);
+  const w = parseFloat(document.getElementById('weight').value);
+  const age = parseInt(document.getElementById('age').value);
+  const gender = document.getElementById('gender').value;
+  const activity = document.getElementById('activity').value;
+  const muscle = document.getElementById('muscle').value;
+  const bodyfat = parseFloat(document.getElementById('bodyfat').value) || null;
+  const goalPeriod = document.getElementById('goalPeriod').value;
+  const goalVal = parseFloat(document.getElementById('goalValue').value) || null;
+  const likes = document.getElementById('likes').value.trim();
+  const dislikes = document.getElementById('dislikes').value.trim();
+  const notes = document.getElementById('notes').value.trim();
+  const cuisines = getSelectedCuisines();
+
+  if (!apiKey) return showError('API 키를 입력해주세요.');
+  if (!h || !w || !age) return showError('키, 체중, 나이를 모두 입력해주세요.');
+  if (!goalType) return showError('목표 항목을 선택해주세요.');
+  if (!goalVal) return showError('목표 수치를 입력해주세요.');
+
+  const targets = calcTargets(h, w, age, gender, activity, goalType, goalVal, goalDir, goalPeriod, bodyfat, muscle);
+
+  document.getElementById('generateBtn').disabled = true;
+  document.getElementById('resultSection').classList.remove('visible');
+  document.getElementById('errorCard').classList.remove('visible');
+  document.getElementById('loadingCard').classList.add('visible');
+  startLoadingSteps();
+
+  const bodyInfoStr = [
+    `성별: ${gender}, 나이: ${age}세, 키: ${h}cm, 체중: ${w}kg, 활동량: ${activity}`,
+    muscle ? `골격근량: ${muscle}kg` : '',
+    bodyfat ? `체지방률: ${bodyfat}%` : '',
+  ].filter(Boolean).join(' / ');
+
+  const goalStr = `${goalPeriod} 동안 ${goalType} ${goalDir}: 현재 → 목표 ${goalVal}${goalType==='체지방률'?'%':'kg'}`;
+  const cuisineStr = cuisines.length > 0 ? cuisines.join(', ') : '제한 없이 다양하게';
+
+  const prompt = `당신은 전문 영양사이자 셰프입니다. 아래 정보를 바탕으로 일주일치(월~일) 맞춤 식단을 생성하세요.
+
+[신체 정보]
+${bodyInfoStr}
+
+[목표]
+${goalStr}
+하루 목표: 칼로리 ${targets.kcal}kcal (하루 적자 약 ${targets.deficit}kcal), 단백질 ${targets.protein}g, 지방 ${targets.fat}g, 탄수화물 ${targets.carb}g
+
+[식단 조건]
+선호 식사 종류: ${cuisineStr}
+좋아하는 음식: ${likes||'제한 없음'}
+기피 재료: ${dislikes||'없음'}
+기타 조건: ${notes||'없음'}
+
+[중요 지침]
+1. 하루 총 칼로리가 반드시 ${targets.kcal}kcal(±50)에 맞아야 합니다
+2. 단백질은 반드시 ${targets.protein}g 이상 충족해야 합니다
+3. 다이어트 식단이 아니라 실제로 먹고 싶은 다채로운 음식으로 구성하세요
+4. 식재료 낭비 최소화: 같은 주 내에서 핵심 재료를 겹쳐 사용하되 다양한 조리법으로 변주하세요
+5. 각 끼니마다 영양성분표 전 항목을 실제 수치로 입력하세요
+6. 기타 조건을 반드시 지켜주세요
+7. food_emoji는 해당 음식을 잘 표현하는 이모지 1개를 넣어주세요
+
+반드시 아래 JSON만 출력하고 다른 텍스트는 절대 없이:
+{"days":[{"day":"월요일","meals":[{"type":"아침","name":"음식명","food_emoji":"🍳","is_eating_out":false,"eating_out_tip":"","ingredients":["닭가슴살 180g","현미밥 150g"],"recipe":"조리법을 단계별로 3~5문장으로 자세히","nutrition":{"calories":520,"carbohydrate":58,"sugar":5,"dietary_fiber":6,"protein":42,"fat":14,"saturated_fat":3,"trans_fat":0,"cholesterol":95,"sodium":480,"calcium":65,"iron":3}}]}],"shopping_list":{"protein":["닭가슴살 600g"],"vegetables":["시금치 300g"],"carbs":["현미밥 5개"],"etc":["올리브오일"]},"weekly_notes":"이번 주 식단 핵심 재료와 구성 방향 설명"}
+
+7일 × (아침+점심+저녁) = 21끼니 모두 포함. 끼니 type은 반드시 "아침", "점심", "저녁" 중 하나.`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 10000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.error?.message || `API 오류 (${res.status})`);
+    }
+
+    const data = await res.json();
+    const raw = data.content?.[0]?.text || '';
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error('응답 파싱 실패. 다시 시도해주세요.');
+    planData = JSON.parse(match[0]);
+    stopLoadingSteps();
+    document.getElementById('loadingCard').classList.remove('visible');
+    renderResult(planData, targets);
+  } catch(e) {
+    stopLoadingSteps();
+    document.getElementById('loadingCard').classList.remove('visible');
+    showError('오류: ' + e.message);
+    document.getElementById('generateBtn').disabled = false;
+  }
+}
+
+// ===== RENDER RESULT =====
+function renderResult(plan, targets) {
+  // Targets
+  document.getElementById('targetsGrid').innerHTML = [
+    [targets.kcal, 'kcal', '일일 칼로리 목표'],
+    [targets.protein+'g', '', '단백질'],
+    [targets.carb+'g', '', '탄수화물'],
+    [targets.fat+'g', '', '지방'],
+  ].map(([v,u,l]) => `<div class="target-card"><div class="t-val">${v}</div>${u?`<div class="t-unit">${u}</div>`:''}<div class="t-lbl">${l}</div></div>`).join('');
+
+  // Weekly table
+  renderWeeklyTable(plan);
+
+  // Footer
+  document.getElementById('resultFooter').innerHTML = `
+    <strong>⚠️ 영양성분 안내:</strong> 현재 수치는 AI 추정값입니다. 정확한 수치는 식품의약품안전처 DB 연동 후 업데이트될 예정입니다.
+    ${plan.weekly_notes ? '<br><br><strong>이번 주 식단:</strong> ' + plan.weekly_notes : ''}
+    ${plan.shopping_list ? '<br><br><strong>🛒 장보기 핵심 재료:</strong> ' + [
+      ...(plan.shopping_list.protein||[]),
+      ...(plan.shopping_list.vegetables||[]),
+      ...(plan.shopping_list.carbs||[]),
+    ].slice(0,8).join(' · ') : ''}
+  `;
+
+  document.getElementById('resultSection').classList.add('visible');
+  document.getElementById('generateBtn').disabled = false;
+  document.getElementById('resultSection').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+function renderWeeklyTable(plan) {
+  const days = plan.days;
+  const mealTypes = ['아침','점심','저녁'];
+  const badgeClass = {'아침':'badge-breakfast','점심':'badge-lunch','저녁':'badge-dinner'};
+
+  let html = '<thead><tr><th></th>';
+  days.forEach(d => { html += `<th>${d.day}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  mealTypes.forEach(type => {
+    html += `<tr><td>${type}</td>`;
+    days.forEach((day, di) => {
+      const meal = day.meals.find(m => m.type === type);
+      if (meal) {
+        const eatOutClass = meal.is_eating_out ? ' eating-out' : '';
+        html += `<td><button class="meal-cell-btn${eatOutClass}" onclick="openModal(${di},'${type}')">
+          <span class="meal-cell-name">${meal.food_emoji || ''} ${meal.name}</span>
+          <span class="meal-cell-kcal">${meal.nutrition?.calories ?? 0} kcal</span>
+        </button></td>`;
+      } else {
+        html += `<td>-</td>`;
+      }
+    });
+    html += '</tr>';
+  });
+
+  // Stats
+  [['총 칼로리','calories','kcal'],['총 탄수화물','carbohydrate','g'],['총 단백질','protein','g'],['총 지방','fat','g']].forEach(([lbl,key,unit]) => {
+    html += `<tr class="stat-row"><td>${lbl}</td>`;
+    days.forEach(day => {
+      const tot = day.meals.reduce((s,m) => s+(m.nutrition?.[key]||0), 0);
+      html += `<td class="stat-val">${tot}${unit}</td>`;
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody>';
+  document.getElementById('weeklyTbl').innerHTML = html;
+}
+
+// ===== MODAL =====
+function openModal(dayIdx, mealType) {
+  const day = planData.days[dayIdx];
+  const meal = day.meals.find(m => m.type === mealType);
+  if (!meal) return;
+
+  const badgeMap = {'아침':'badge-breakfast','점심':'badge-lunch','저녁':'badge-dinner'};
+  const n = meal.nutrition || {};
+
+  document.getElementById('modalBadge').textContent = meal.type;
+  document.getElementById('modalBadge').className = 'modal-badge ' + (badgeMap[meal.type]||'');
+  document.getElementById('modalTitle').textContent = (meal.food_emoji||'') + ' ' + meal.name;
+  document.getElementById('modalKcal').textContent = `${n.calories ?? 0} kcal · ${day.day}`;
+
+  const ings = (meal.ingredients||[]).map(i=>`<span class="ingredient-tag">${i}</span>`).join('');
+  const nutRows = [
+    ['열량',n.calories,'kcal',false],['탄수화물',n.carbohydrate,'g',false],
+    ['당류',n.sugar,'g',true],['식이섬유',n.dietary_fiber,'g',true],
+    ['단백질',n.protein,'g',false],['지방',n.fat,'g',false],
+    ['포화지방',n.saturated_fat,'g',true],['트랜스지방',n.trans_fat,'g',true],
+    ['콜레스테롤',n.cholesterol,'mg',false],['나트륨',n.sodium,'mg',false],
+    ['칼슘',n.calcium,'mg',false],['철분',n.iron,'mg',false],
+  ].map(([name,val,unit,sub])=>`<tr class="${sub?'sub':''}"><td>${name}</td><td>${val!=null?val+unit:'-'}</td></tr>`).join('');
+
+  const eatOutSection = meal.is_eating_out && meal.eating_out_tip
+    ? `<div class="eating-out-tip">🍽 외식 팁: ${meal.eating_out_tip}</div>` : '';
+
+  document.getElementById('modalBody').innerHTML = `
+    <div class="food-image-wrap" id="foodImgWrap">
+      <div class="food-image-loading" id="foodImgLoading"><div class="mini-spinner"></div></div>
+      <img id="foodImg" alt="${meal.name}" onload="onImgLoad()" onerror="onImgError()">
+      <div class="food-image-placeholder" id="foodImgPlaceholder" style="display:none;">
+        <span>${meal.food_emoji||'🍽'}</span>
+        <span>${meal.name}</span>
+      </div>
+    </div>
+    <div class="modal-section-title">재료</div>
+    <div class="ingredients-list">${ings}</div>
+    ${eatOutSection}
+    <div class="modal-section-title" style="margin-top:18px">조리법</div>
+    <div class="recipe-text">${meal.recipe||''}</div>
+    <div class="modal-section-title" style="margin-top:18px">영양성분표</div>
+    <table class="nut-table">
+      <thead><tr><th>영양소</th><th>함량</th></tr></thead>
+      <tbody>${nutRows}</tbody>
+    </table>
+  `;
+
+  // Load food image via Unsplash
+  loadFoodImage(meal.name, meal.food_emoji);
+
+  document.getElementById('modalOverlay').classList.add('visible');
+  document.body.style.overflow = 'hidden';
+}
+
+function loadFoodImage(mealName, emoji) {
+  const img = document.getElementById('foodImg');
+  const loading = document.getElementById('foodImgLoading');
+  const placeholder = document.getElementById('foodImgPlaceholder');
+
+  // Use Unsplash source for food images
+  const query = encodeURIComponent(mealName.replace(/[^\w\s가-힣]/g,'').trim() + ' food dish');
+  img.src = `https://source.unsplash.com/800x400/?${query}`;
+  loading.style.display = 'flex';
+  img.style.display = 'none';
+  placeholder.style.display = 'none';
+}
+
+function onImgLoad() {
+  document.getElementById('foodImgLoading').style.display = 'none';
+  document.getElementById('foodImg').style.display = 'block';
+  document.getElementById('foodImg').classList.add('loaded');
+}
+
+function onImgError() {
+  document.getElementById('foodImgLoading').style.display = 'none';
+  document.getElementById('foodImg').style.display = 'none';
+  document.getElementById('foodImgPlaceholder').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
+function closeModalOutside(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ===== ERROR =====
+function showError(msg) {
+  const el = document.getElementById('errorCard');
+  el.textContent = msg;
+  el.classList.add('visible');
+  document.getElementById('generateBtn').disabled = false;
+}
+</script>
+</body>
+</html>
